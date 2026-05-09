@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(netstat -ano)",
+      "Bash(npm run *)",
+      "Bash(node -e \"require\\('@google/generative-ai'\\); console.log\\('ok'\\)\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

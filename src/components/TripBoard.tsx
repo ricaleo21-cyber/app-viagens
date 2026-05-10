@@ -294,7 +294,7 @@ function SortablePlaceCard({
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onRouteClick(card); }}
-                  className="p-1.5 rounded-lg text-violet-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
+                  className="hidden md:block p-1.5 rounded-lg text-violet-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
                   title="Criar rota"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -343,11 +343,11 @@ function SortablePlaceCard({
                   )}
                 </div>
 
-                {/* Drag handle */}
+                {/* Drag handle — desktop only */}
                 <button
                   {...attributes}
                   {...listeners}
-                  className="p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-grab active:cursor-grabbing touch-none"
+                  className="hidden md:block p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-grab active:cursor-grabbing touch-none"
                   title="Arrastar para reordenar"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">

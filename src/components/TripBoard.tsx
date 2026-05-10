@@ -166,7 +166,7 @@ function SortablePlaceCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
-  const { updatePlace, removePlace } = useTripStore();
+  const { updatePlace, removePlace, setShowMobileMap, setMapCenter, setMapZoom } = useTripStore();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -277,6 +277,21 @@ function SortablePlaceCard({
                 <span className="text-xs font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
                   {card.duration}
                 </span>
+                {/* Mobile: Ver no mapa */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMobileMap(true);
+                    setMapCenter(card.position);
+                    setMapZoom(15);
+                  }}
+                  className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
+                  title="Ver no mapa"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                  </svg>
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onRouteClick(card); }}
                   className="p-1.5 rounded-lg text-violet-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
@@ -527,18 +542,18 @@ export default function TripBoard() {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] dark:bg-[#0b1120]">
       {/* Trip Header */}
-      <header className="shrink-0 bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-slate-800 px-8 py-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+      <header className="shrink-0 bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-4 md:py-5">
+        <div className="flex items-start justify-between mb-4 gap-2">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">✈️</span>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{trip.name}</h1>
+              <span className="text-xl md:text-2xl">✈️</span>
+              <h1 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">{trip.name}</h1>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">
               {trip.startDate} – {trip.endDate} · {trip.totalDays} dias · {trip.cities.length} cidades
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors shadow-lg shadow-violet-500/25 cursor-pointer"
@@ -582,7 +597,7 @@ export default function TripBoard() {
       </header>
 
       {/* Cards Area */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 pb-20 md:pb-6">
         <div className="flex items-center justify-between gap-2 mb-5">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-xs font-bold shadow-md">

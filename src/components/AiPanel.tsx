@@ -102,8 +102,8 @@ export default function AiPanel() {
 
   return (
     <div
-      className="fixed bottom-6 z-40 flex flex-col"
-      style={{ left: "calc(256px + 16px)", width: "380px" }}
+      className="fixed z-40 flex flex-col bottom-[calc(56px+8px)] right-4 md:bottom-6 md:right-auto md:left-[272px]"
+      style={{ width: "min(380px, calc(100vw - 32px))" }}
     >
       {/* Panel — cresce para cima a partir do botão */}
       <div

@@ -34,7 +34,7 @@ export default function NavigationSidebar() {
   const { trip, activeView, setActiveView, setShowHome } = useTripStore();
 
   return (
-    <aside className="flex w-64 flex-col bg-[#0f172a] text-white shrink-0">
+    <aside className="hidden md:flex w-64 flex-col bg-[#0f172a] text-white shrink-0">
       {/* Logo / Brand */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
         <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25">

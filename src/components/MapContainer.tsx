@@ -221,7 +221,7 @@ export default function MapContainer() {
   /* ---- Fallback: no API key or load error ---- */
   if (!API_KEY || loadError) {
     return (
-      <div className="w-[40%] shrink-0 bg-[#1a1f2e] flex flex-col relative overflow-hidden">
+      <div className="w-full bg-[#1a1f2e] flex flex-col relative overflow-hidden">
         {/* Grid pattern background */}
         <div className="absolute inset-0 opacity-10">
           <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -281,7 +281,7 @@ export default function MapContainer() {
   /* ---- Loading state ---- */
   if (!isLoaded) {
     return (
-      <div className="w-[40%] shrink-0 bg-[#1a1f2e] flex items-center justify-center">
+      <div className="w-full bg-[#1a1f2e] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
           <p className="text-sm text-slate-400 font-medium">
@@ -294,7 +294,7 @@ export default function MapContainer() {
 
   /* ---- Real map ---- */
   return (
-    <div className="w-[40%] shrink-0 relative overflow-hidden">
+    <div className="w-full relative overflow-hidden">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={mapCenter}
@@ -430,7 +430,7 @@ export default function MapContainer() {
       )}
 
       {/* Marker pills overlay */}
-      <div className="absolute bottom-16 left-4 right-4 z-10 flex gap-2 flex-wrap">
+      <div className="absolute bottom-4 md:bottom-16 left-4 right-4 z-10 flex gap-2 flex-wrap">
         {places.map((m) => (
           <button
             key={m.id}

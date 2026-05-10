@@ -127,6 +127,10 @@ interface TripState {
   loadTrip: (tripId: string) => void;
   updateCurrentTripCover: (url: string) => void;
 
+  // Mobile
+  showMobileMap: boolean;
+  setShowMobileMap: (show: boolean) => void;
+
   // Trip actions
   setTrip: (trip: Trip) => void;
 }
@@ -277,6 +281,7 @@ export const useTripStore = create<TripState>((set) => ({
   reservations: [],
   showHome: true,
   trips: [defaultTrip],
+  showMobileMap: false,
 
   setActiveDay: (dayId) => set({ activeDay: dayId }),
 
@@ -386,4 +391,6 @@ export const useTripStore = create<TripState>((set) => ({
       trip: { ...state.trip, coverPhotoUrl: url },
       trips: state.trips.map((t) => t.id === state.trip.id ? { ...t, coverPhotoUrl: url } : t),
     })),
+
+  setShowMobileMap: (show) => set({ showMobileMap: show }),
 }));

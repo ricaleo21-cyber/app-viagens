@@ -14,7 +14,16 @@ export default function ViewSwitcher() {
   }
 
   if (activeView === "wishlist") {
-    return <WishlistView />;
+    return (
+      <>
+        <div className={`flex-1 min-w-0 overflow-hidden ${showMobileMap ? "hidden md:flex" : "flex"}`}>
+          <WishlistView />
+        </div>
+        <div className={`shrink-0 overflow-hidden ${showMobileMap ? "flex w-full md:w-[40%]" : "hidden md:flex md:w-[40%]"}`}>
+          <MapContainer />
+        </div>
+      </>
+    );
   }
 
   return (

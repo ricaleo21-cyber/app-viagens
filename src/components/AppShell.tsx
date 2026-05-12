@@ -134,7 +134,7 @@ function MobileHeader({ onOpenDrawer }: { onOpenDrawer: () => void }) {
       </div>
 
       {/* List / Map toggle pill */}
-      {activeView === "itinerary" && (
+      {(activeView === "itinerary" || activeView === "wishlist") && (
         <div className="flex bg-white/10 rounded-xl p-1 gap-1 shrink-0">
           <button
             onClick={() => setShowMobileMap(false)}

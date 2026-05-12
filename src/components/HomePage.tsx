@@ -43,6 +43,7 @@ function NewTripModal({ onClose }: { onClose: () => void }) {
         city: cityList[0] ?? "",
       })),
       places: [],
+      wishlist: [],
     };
 
     addTrip(newTrip);

@@ -22,6 +22,10 @@ function MobileDrawer({ onClose }: { onClose: () => void }) {
       id: "reservations", label: "Reservas", view: "reservations" as const,
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>,
     },
+    {
+      id: "wishlist", label: "Lugares para Visitar", view: "wishlist" as const,
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>,
+    },
   ];
 
   return (
@@ -150,7 +154,7 @@ function MobileHeader({ onOpenDrawer }: { onOpenDrawer: () => void }) {
           </button>
         </div>
       )}
-      {activeView === "reservations" && (
+      {(activeView === "reservations" || activeView === "wishlist") && (
         <button
           onClick={() => setActiveView("itinerary")}
           className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
@@ -190,6 +194,12 @@ function MobileBottomNav() {
       active: activeView === "reservations",
       onClick: () => { setActiveView("reservations"); setShowMobileMap(false); },
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>,
+    },
+    {
+      label: "Lugares",
+      active: activeView === "wishlist",
+      onClick: () => { setActiveView("wishlist"); setShowMobileMap(false); },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>,
     },
   ];
 

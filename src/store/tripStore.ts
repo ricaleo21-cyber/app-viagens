@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 // ---- Types ----
 
@@ -44,6 +45,7 @@ export interface Trip {
   mapZoom: number;
   days: Day[];
   places: Place[];
+  wishlist: Place[];
 }
 
 // ---- Reservation types ----
@@ -75,7 +77,7 @@ interface TripState {
   trip: Trip;
   activeDay: number;
   activePlace: number | null;
-  activeView: "itinerary" | "reservations";
+  activeView: "itinerary" | "reservations" | "wishlist";
 
   // Route state
   route: {
@@ -111,7 +113,12 @@ interface TripState {
   setPendingRoutePlace: (place: Place | null) => void;
 
   // View actions
-  setActiveView: (view: "itinerary" | "reservations") => void;
+  setActiveView: (view: "itinerary" | "reservations" | "wishlist") => void;
+
+  // Wishlist actions
+  addToWishlist: (place: Place) => void;
+  removeFromWishlist: (placeId: number) => void;
+  moveToItinerary: (placeId: number) => void;
 
   // Reservation state & actions
   reservations: Reservation[];
@@ -267,11 +274,14 @@ const defaultTrip: Trip = {
       website: "https://www.turismoroma.it",
     },
   ],
+  wishlist: [],
 };
 
 // ---- Store ----
 
-export const useTripStore = create<TripState>((set) => ({
+export const useTripStore = create<TripState>()(
+  persist(
+    (set) => ({
   trip: defaultTrip,
   activeDay: 1,
   activePlace: null,
@@ -393,4 +403,38 @@ export const useTripStore = create<TripState>((set) => ({
     })),
 
   setShowMobileMap: (show) => set({ showMobileMap: show }),
-}));
+
+  addToWishlist: (place) =>
+    set((state) => ({
+      trip: { ...state.trip, wishlist: [...(state.trip.wishlist ?? []), place] },
+    })),
+
+  removeFromWishlist: (placeId) =>
+    set((state) => ({
+      trip: { ...state.trip, wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId) },
+    })),
+
+  moveToItinerary: (placeId) =>
+    set((state) => {
+      const place = (state.trip.wishlist ?? []).find((p) => p.id === placeId);
+      if (!place) return {};
+      return {
+        trip: {
+          ...state.trip,
+          places: [...state.trip.places, place],
+          wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId),
+        },
+      };
+    }),
+  }),
+  {
+    name: "viagem-planner-state",
+    partialize: (state) => ({
+      trip: state.trip,
+      trips: state.trips,
+      reservations: state.reservations,
+      activeDay: state.activeDay,
+      activeView: state.activeView,
+    }),
+  }
+));

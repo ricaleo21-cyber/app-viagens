@@ -499,7 +499,7 @@ function SortablePlaceCard({
                   </span>
                   <span className="text-xs text-slate-400">{card.time}</span>
                 </div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-white truncate">
+                <h3 className="text-base font-bold text-slate-800 dark:text-white line-clamp-2 md:truncate">
                   {regenerating ? <span className="animate-pulse text-violet-500">Gerando novo local...</span> : card.title}
                 </h3>
               </div>
@@ -661,8 +661,8 @@ function SortablePlaceCard({
             )}
           </div>
 
-          {/* Photo thumbnail */}
-          <div className="w-28 shrink-0 relative">
+          {/* Photo thumbnail — desktop only */}
+          <div className="hidden md:block w-28 shrink-0 relative">
             {card.photoUrl ? (
               <img src={card.photoUrl} alt={card.title} className="w-full h-full object-cover" />
             ) : (

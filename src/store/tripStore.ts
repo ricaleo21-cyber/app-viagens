@@ -212,18 +212,21 @@ async function loadTripsFromDB(userId: string): Promise<{ trips: Trip[]; reserva
     reservationMap[row.id] = (row.reservations ?? []) as Reservation[];
   });
 
-  // Seed demo trip once if the user doesn't have it yet
+  // Seed demo trip if the user doesn't have it yet
   const hasDemo = trips.some((t) => t.id === DEMO_TRIP.id);
   if (!hasDemo) {
-    const { error: seedErr } = await supabase.from("trips").insert({
+    const { error: seedErr } = await supabase.from("trips").upsert({
       id: DEMO_TRIP.id,
       user_id: userId,
       data: DEMO_TRIP,
       reservations: DEMO_RESERVATIONS,
+      updated_at: new Date().toISOString(),
     });
     if (!seedErr) {
-      trips.push(DEMO_TRIP);
+      trips.unshift(DEMO_TRIP);
       reservationMap[DEMO_TRIP.id] = DEMO_RESERVATIONS;
+    } else {
+      console.error("Demo trip seed error:", seedErr);
     }
   }
 

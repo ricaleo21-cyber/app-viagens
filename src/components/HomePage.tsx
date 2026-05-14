@@ -139,14 +139,16 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    // Skip if photo already known (loaded from store) or no city to search
-    if (photo !== undefined || !trip.cities[0]) return;
-    fetch(`/api/place-photo?q=${encodeURIComponent(trip.cities[0])}`)
+    if (photo !== undefined) return;
+    // Use first non-empty city, or fall back to trip name
+    const query = trip.cities.find(Boolean) || trip.name;
+    if (!query) { setPhoto(""); return; }
+    fetch(`/api/place-photo?q=${encodeURIComponent(query)}`)
       .then((r) => r.json())
       .then((d) => {
         const url = d.url ?? "";
         setPhoto(url);
-        if (url) updateTripCover(trip.id, url); // persist so we don't fetch again
+        if (url) updateTripCover(trip.id, url);
       })
       .catch(() => setPhoto(""));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

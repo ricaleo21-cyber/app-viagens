@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTripStore } from "@/store/tripStore";
 import HomePage from "@/components/HomePage";
 import NavigationSidebar from "@/components/NavigationSidebar";
@@ -8,10 +8,11 @@ import ViewSwitcher from "@/components/ViewSwitcher";
 import PlaceDetailWrapper from "@/components/PlaceDetailWrapper";
 import RouteModal from "@/components/RouteModal";
 import AiPanel from "@/components/AiPanel";
+import AuthPage from "@/components/AuthPage";
 
 // ---- Mobile Drawer (sidebar como overlay) ----
 function MobileDrawer({ onClose }: { onClose: () => void }) {
-  const { trip, activeView, setActiveView, setShowHome, setShowMobileMap } = useTripStore();
+  const { trip, activeView, setActiveView, setShowHome, setShowMobileMap, user, signOut } = useTripStore();
 
   const navItems = [
     {
@@ -104,14 +105,25 @@ function MobileDrawer({ onClose }: { onClose: () => void }) {
         </nav>
 
         {/* User */}
-        <div className="border-t border-white/10 p-4">
+        <div className="border-t border-white/10 p-4 space-y-1">
           <div className="flex items-center gap-3 px-3 py-2.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold shadow-lg">R</div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold shadow-lg shrink-0">
+              {user?.email?.[0]?.toUpperCase() ?? "?"}
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">Ricardo</p>
-              <p className="text-[11px] text-slate-500">Viajante Premium</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.email?.split("@")[0] ?? ""}</p>
+              <p className="text-[11px] text-slate-500 truncate">{user?.email ?? ""}</p>
             </div>
           </div>
+          <button
+            onClick={() => { signOut(); onClose(); }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-red-400 transition-all cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Sair
+          </button>
         </div>
       </div>
     </div>
@@ -234,8 +246,23 @@ function MobileBottomNav() {
 
 // ---- App Shell ----
 export default function AppShell() {
-  const { showHome } = useTripStore();
+  const { showHome, user, authLoading, init } = useTripStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => { init(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <AuthPage />;
 
   if (showHome) return <HomePage />;
 

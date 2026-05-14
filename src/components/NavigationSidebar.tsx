@@ -55,7 +55,7 @@ const navItems = [
 ];
 
 export default function NavigationSidebar() {
-  const { trip, activeView, setActiveView, setShowHome } = useTripStore();
+  const { trip, activeView, setActiveView, setShowHome, user, signOut } = useTripStore();
 
   return (
     <aside className="hidden md:flex w-64 flex-col bg-[#0f172a] text-white shrink-0">
@@ -147,34 +147,25 @@ export default function NavigationSidebar() {
       </nav>
 
       {/* Bottom / User Area */}
-      <div className="border-t border-white/10 p-4">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/5 transition-colors cursor-pointer">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold shadow-lg shadow-emerald-500/20">
-            R
+      <div className="border-t border-white/10 p-4 space-y-2">
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold shadow-lg shadow-emerald-500/20 shrink-0">
+            {user?.email?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">Ricardo</p>
-            <p className="text-[11px] text-slate-500 truncate">
-              Viajante Premium
-            </p>
+            <p className="text-sm font-semibold truncate text-white">{user?.email?.split("@")[0] ?? ""}</p>
+            <p className="text-[11px] text-slate-500 truncate">{user?.email ?? ""}</p>
           </div>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-slate-600"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="19" cy="12" r="1" />
-            <circle cx="5" cy="12" r="1" />
-          </svg>
         </div>
+        <button
+          onClick={signOut}
+          className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-red-400 transition-all cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sair
+        </button>
       </div>
     </aside>
   );

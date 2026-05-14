@@ -3,6 +3,18 @@ import { persist } from "zustand/middleware";
 
 // ---- Types ----
 
+export interface Receipt {
+  id: number;
+  dayId: number;
+  imageData: string; // base64 data URL
+  vendor?: string;
+  amount?: number;
+  currency?: string;
+  category?: string;
+  description?: string;
+  aiExtracted?: boolean;
+}
+
 export interface Coordinates {
   lat: number;
   lng: number;
@@ -10,6 +22,7 @@ export interface Coordinates {
 
 export interface Place {
   id: number;
+  dayId?: number;
   title: string;
   emoji: string;
   category: string;
@@ -46,6 +59,7 @@ export interface Trip {
   days: Day[];
   places: Place[];
   wishlist: Place[];
+  receipts: Receipt[];
 }
 
 // ---- Reservation types ----
@@ -77,7 +91,7 @@ interface TripState {
   trip: Trip;
   activeDay: number;
   activePlace: number | null;
-  activeView: "itinerary" | "reservations" | "wishlist";
+  activeView: "itinerary" | "reservations" | "wishlist" | "receipts";
 
   // Route state
   route: {
@@ -99,7 +113,7 @@ interface TripState {
   addPlace: (place: Place) => void;
   removePlace: (placeId: number) => void;
   updatePlace: (placeId: number, data: Partial<Place>) => void;
-  reorderPlaces: (oldIndex: number, newIndex: number) => void;
+  reorderPlaces: (dayId: number, oldIndex: number, newIndex: number) => void;
   addPhotoToPlace: (placeId: number, photoUrl: string) => void;
   removePhotoFromPlace: (placeId: number, photoIndex: number) => void;
 
@@ -113,12 +127,17 @@ interface TripState {
   setPendingRoutePlace: (place: Place | null) => void;
 
   // View actions
-  setActiveView: (view: "itinerary" | "reservations" | "wishlist") => void;
+  setActiveView: (view: "itinerary" | "reservations" | "wishlist" | "receipts") => void;
+
+  // Receipt actions
+  addReceipt: (receipt: Receipt) => void;
+  updateReceipt: (id: number, data: Partial<Receipt>) => void;
+  removeReceipt: (id: number) => void;
 
   // Wishlist actions
   addToWishlist: (place: Place) => void;
   removeFromWishlist: (placeId: number) => void;
-  moveToItinerary: (placeId: number) => void;
+  moveToItinerary: (placeId: number, dayId: number) => void;
 
   // Reservation state & actions
   reservations: Reservation[];
@@ -133,6 +152,8 @@ interface TripState {
   addTrip: (trip: Trip) => void;
   loadTrip: (tripId: string) => void;
   updateCurrentTripCover: (url: string) => void;
+  updateTripCover: (tripId: string, url: string) => void;
+  deleteTrip: (tripId: string) => void;
 
   // Mobile
   showMobileMap: boolean;
@@ -163,6 +184,7 @@ const defaultTrip: Trip = {
   places: [
     {
       id: 1,
+      dayId: 1,
       title: "Torre Eiffel",
       emoji: "🗼",
       category: "Atração",
@@ -179,6 +201,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 2,
+      dayId: 1,
       title: "Museu do Louvre",
       emoji: "🎨",
       category: "Museu",
@@ -195,6 +218,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 3,
+      dayId: 2,
       title: "Café de Flore",
       emoji: "☕",
       category: "Restaurante",
@@ -211,6 +235,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 4,
+      dayId: 2,
       title: "Cruzeiro pelo Sena",
       emoji: "🚢",
       category: "Passeio",
@@ -227,6 +252,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 5,
+      dayId: 4,
       title: "Coliseu",
       emoji: "🏛️",
       category: "Atração",
@@ -243,6 +269,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 6,
+      dayId: 4,
       title: "Vaticano",
       emoji: "⛪",
       category: "Monumento",
@@ -259,6 +286,7 @@ const defaultTrip: Trip = {
     },
     {
       id: 7,
+      dayId: 5,
       title: "Fontana di Trevi",
       emoji: "⛲",
       category: "Atração",
@@ -275,6 +303,7 @@ const defaultTrip: Trip = {
     },
   ],
   wishlist: [],
+  receipts: [],
 };
 
 // ---- Store ----
@@ -298,71 +327,61 @@ export const useTripStore = create<TripState>()(
   setActivePlace: (placeId) => set({ activePlace: placeId }),
 
   addPlace: (place) =>
-    set((state) => ({
-      trip: { ...state.trip, places: [...state.trip.places, place] },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, places: [...state.trip.places, place] };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   removePlace: (placeId) =>
-    set((state) => ({
-      trip: {
-        ...state.trip,
-        places: state.trip.places.filter((p) => p.id !== placeId),
-      },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, places: state.trip.places.filter((p) => p.id !== placeId) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   updatePlace: (placeId, data) =>
-    set((state) => ({
-      trip: {
-        ...state.trip,
-        places: state.trip.places.map((p) =>
-          p.id === placeId ? { ...p, ...data } : p
-        ),
-      },
-    })),
-
-  reorderPlaces: (oldIndex, newIndex) =>
     set((state) => {
-      const newPlaces = [...state.trip.places];
-      const [moved] = newPlaces.splice(oldIndex, 1);
-      newPlaces.splice(newIndex, 0, moved);
-      return { trip: { ...state.trip, places: newPlaces } };
+      const trip = { ...state.trip, places: state.trip.places.map((p) => p.id === placeId ? { ...p, ...data } : p) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
+
+  reorderPlaces: (dayId, oldIndex, newIndex) =>
+    set((state) => {
+      const all = [...state.trip.places];
+      const dayIdxs = all.reduce<number[]>((acc, p, i) => { if ((p.dayId ?? 0) === dayId) acc.push(i); return acc; }, []);
+      const daySlice = dayIdxs.map(i => all[i]);
+      const [moved] = daySlice.splice(oldIndex, 1);
+      daySlice.splice(newIndex, 0, moved);
+      dayIdxs.forEach((globalIdx, i) => { all[globalIdx] = daySlice[i]; });
+      const trip = { ...state.trip, places: all };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
     }),
 
   addPhotoToPlace: (placeId, photoUrl) =>
-    set((state) => ({
-      trip: {
-        ...state.trip,
-        places: state.trip.places.map((p) =>
-          p.id === placeId
-            ? { ...p, photos: [...(p.photos || []), photoUrl] }
-            : p
-        ),
-      },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, places: state.trip.places.map((p) => p.id === placeId ? { ...p, photos: [...(p.photos || []), photoUrl] } : p) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   removePhotoFromPlace: (placeId, photoIndex) =>
-    set((state) => ({
-      trip: {
-        ...state.trip,
-        places: state.trip.places.map((p) =>
-          p.id === placeId
-            ? { ...p, photos: (p.photos || []).filter((_, i) => i !== photoIndex) }
-            : p
-        ),
-      },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, places: state.trip.places.map((p) => p.id === placeId ? { ...p, photos: (p.photos || []).filter((_, i) => i !== photoIndex) } : p) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   setMapCenter: (coords) =>
-    set((state) => ({
-      trip: { ...state.trip, mapCenter: coords },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, mapCenter: coords };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   setMapZoom: (zoom) =>
-    set((state) => ({
-      trip: { ...state.trip, mapZoom: zoom },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, mapZoom: zoom };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
-  setTrip: (trip) => set({ trip }),
+  setTrip: (trip) =>
+    set((state) => ({ trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) })),
 
   setRoute: (origin, destination, originLabel, destinationLabel, travelMode) =>
     set({ route: { origin, destination, originLabel, destinationLabel, travelMode } }),
@@ -402,29 +421,60 @@ export const useTripStore = create<TripState>()(
       trips: state.trips.map((t) => t.id === state.trip.id ? { ...t, coverPhotoUrl: url } : t),
     })),
 
+  updateTripCover: (tripId, url) =>
+    set((state) => ({
+      trips: state.trips.map((t) => t.id === tripId ? { ...t, coverPhotoUrl: url } : t),
+      trip: state.trip.id === tripId ? { ...state.trip, coverPhotoUrl: url } : state.trip,
+    })),
+
+  deleteTrip: (tripId) =>
+    set((state) => ({
+      trips: state.trips.filter((t) => t.id !== tripId),
+      showHome: true,
+    })),
+
   setShowMobileMap: (show) => set({ showMobileMap: show }),
 
   addToWishlist: (place) =>
-    set((state) => ({
-      trip: { ...state.trip, wishlist: [...(state.trip.wishlist ?? []), place] },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, wishlist: [...(state.trip.wishlist ?? []), place] };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
   removeFromWishlist: (placeId) =>
-    set((state) => ({
-      trip: { ...state.trip, wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId) },
-    })),
+    set((state) => {
+      const trip = { ...state.trip, wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
 
-  moveToItinerary: (placeId) =>
+  moveToItinerary: (placeId, dayId) =>
     set((state) => {
       const place = (state.trip.wishlist ?? []).find((p) => p.id === placeId);
       if (!place) return {};
-      return {
-        trip: {
-          ...state.trip,
-          places: [...state.trip.places, place],
-          wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId),
-        },
+      const trip = {
+        ...state.trip,
+        places: [...state.trip.places, { ...place, dayId }],
+        wishlist: (state.trip.wishlist ?? []).filter((p) => p.id !== placeId),
       };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
+
+  addReceipt: (receipt) =>
+    set((state) => {
+      const trip = { ...state.trip, receipts: [...(state.trip.receipts ?? []), receipt] };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
+
+  updateReceipt: (id, data) =>
+    set((state) => {
+      const trip = { ...state.trip, receipts: (state.trip.receipts ?? []).map((r) => r.id === id ? { ...r, ...data } : r) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
+    }),
+
+  removeReceipt: (id) =>
+    set((state) => {
+      const trip = { ...state.trip, receipts: (state.trip.receipts ?? []).filter((r) => r.id !== id) };
+      return { trip, trips: state.trips.map((t) => t.id === trip.id ? trip : t) };
     }),
   }),
   {

@@ -1,7 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTripStore, type Place } from "@/store/tripStore";
+
+function inferFromTypes(types: string[]): { emoji: string; category: string } {
+  if (types.some(t => ["restaurant", "food", "cafe", "meal_takeaway", "bakery", "bar", "meal_delivery"].includes(t)))
+    return { emoji: "🍽️", category: "Restaurante" };
+  if (types.some(t => ["museum"].includes(t)))
+    return { emoji: "🎨", category: "Museu" };
+  if (types.some(t => ["park", "natural_feature", "campground"].includes(t)))
+    return { emoji: "🌿", category: "Parque" };
+  if (types.some(t => ["shopping_mall", "store", "supermarket", "department_store", "clothing_store", "grocery_or_supermarket"].includes(t)))
+    return { emoji: "🛍️", category: "Compras" };
+  if (types.some(t => ["lodging"].includes(t)))
+    return { emoji: "🏨", category: "Hotel" };
+  if (types.some(t => ["church", "place_of_worship", "hindu_temple", "mosque", "synagogue"].includes(t)))
+    return { emoji: "⛪", category: "Monumento" };
+  return { emoji: "📍", category: "Atração" };
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   Atração: "from-amber-500 to-orange-500",
@@ -25,19 +41,54 @@ function AddWishlistModal({ onClose }: { onClose: () => void }) {
   const [note, setNote] = useState("");
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [geocodedPosition, setGeocodedPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const acInstanceRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   const city = trip.cities.find(Boolean) || trip.name;
+
+  // Attach Google Places Autocomplete to title input (Maps already loaded by MapContainer)
+  useEffect(() => {
+    const attach = () => {
+      if (!titleInputRef.current || !window.google?.maps?.places) return false;
+      acInstanceRef.current = new google.maps.places.Autocomplete(titleInputRef.current, {
+        types: ["establishment", "geocode"],
+      });
+      acInstanceRef.current.addListener("place_changed", () => {
+        const place = acInstanceRef.current?.getPlace();
+        if (!place) return;
+        if (place.name) setTitle(place.name);
+        if (place.formatted_address) setAddress(place.formatted_address);
+        if (place.geometry?.location) {
+          setGeocodedPosition({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+        }
+        const { emoji: e, category: c } = inferFromTypes(place.types || []);
+        setEmoji(e);
+        setCategory(c);
+      });
+      return true;
+    };
+    if (!attach()) {
+      const t = setTimeout(attach, 400);
+      return () => clearTimeout(t);
+    }
+    return () => {
+      if (acInstanceRef.current) google.maps.event.clearInstanceListeners(acInstanceRef.current);
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    let position = { lat: 0, lng: 0 };
-    try {
-      const q = address.trim() || `${title.trim()}, ${city}`;
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (data.lat || data.lng) position = { lat: data.lat, lng: data.lng };
-    } catch {}
+    let position = geocodedPosition ?? { lat: 0, lng: 0 };
+    if (!geocodedPosition) {
+      try {
+        const q = address.trim() || `${title.trim()}, ${city}`;
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.lat || data.lng) position = { lat: data.lat, lng: data.lng };
+      } catch {}
+    }
     addToWishlist({
       id: Date.now(),
       title: title.trim(),
@@ -63,6 +114,12 @@ function AddWishlistModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="px-6 py-5 space-y-4">
+          {/* Search hint */}
+          <p className="text-xs text-slate-400 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Digite o nome do lugar para buscar e preencher automaticamente
+          </p>
+
           <div className="flex gap-3">
             <div className="space-y-1.5 w-20 shrink-0">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Emoji</label>
@@ -71,12 +128,23 @@ function AddWishlistModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="space-y-1.5 flex-1">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nome do lugar *</label>
-              <input autoFocus type="text" placeholder="Ex: Las Olas Beach" value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              <input
+                ref={titleInputRef}
+                autoFocus
+                type="text"
+                placeholder="Ex: Walmart Supercenter..."
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setGeocodedPosition(null); }}
                 className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all" />
             </div>
           </div>
+
+          {geocodedPosition && (
+            <p className="text-xs text-emerald-500 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Localização encontrada no mapa
+            </p>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Categoria</label>
@@ -87,8 +155,8 @@ function AddWishlistModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Endereço (para localizar no mapa)</label>
-            <input type="text" placeholder="Endereço completo" value={address} onChange={(e) => setAddress(e.target.value)}
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Endereço</label>
+            <input type="text" placeholder="Preenchido automaticamente ou informe manualmente" value={address} onChange={(e) => setAddress(e.target.value)}
               className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
           </div>
 
@@ -120,7 +188,8 @@ function MoveToDayModal({ place, onClose }: { place: Place; onClose: () => void 
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const handleAdd = () => {
-    moveToItinerary(place.id);
+    if (selectedDay === null) return;
+    moveToItinerary(place.id, selectedDay);
     setActiveView("itinerary");
     setShowMobileMap(false);
     onClose();

@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useTripStore, type Place } from "@/store/tripStore";
+import { useTripStore, type Place, type Receipt } from "@/store/tripStore";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Atração: "from-amber-500 to-orange-500",
@@ -36,7 +36,7 @@ const cityCoords: Record<string, { lat: number; lng: number }> = {
 
 // ---- Add Place Modal ----
 
-function AddPlaceModal({ onClose, city }: { onClose: () => void; city: string }) {
+function AddPlaceModal({ onClose, city, dayId }: { onClose: () => void; city: string; dayId: number }) {
   const { addPlace } = useTripStore();
   const [title, setTitle] = useState("");
   const [emoji, setEmoji] = useState("📍");
@@ -59,6 +59,7 @@ function AddPlaceModal({ onClose, city }: { onClose: () => void; city: string })
     } catch {}
     addPlace({
       id: Date.now(),
+      dayId,
       title: title.trim(),
       emoji,
       category,
@@ -146,6 +147,165 @@ function AddPlaceModal({ onClose, city }: { onClose: () => void; city: string })
           <button onClick={handleSave} disabled={!title.trim() || saving}
             className="flex-1 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
             {saving ? "Salvando..." : "Adicionar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Receipt Scan Modal ----
+
+const RECEIPT_CATEGORIES = [
+  "Restaurante", "Supermercado", "Loja", "Farmácia",
+  "Transporte", "Hotel", "Entretenimento", "Atrações", "Outro",
+];
+
+function ReceiptScanModal({
+  imageData, dayId, days, onClose,
+}: {
+  imageData: string;
+  dayId: number;
+  days: { id: number; label: string; date: string; city: string }[];
+  onClose: () => void;
+}) {
+  const { addReceipt } = useTripStore();
+  const [analyzing, setAnalyzing] = useState(true);
+  const [vendor, setVendor] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [category, setCategory] = useState("Outro");
+  const [description, setDescription] = useState("");
+  const [selectedDay, setSelectedDay] = useState(dayId);
+  const [analyzeError, setAnalyzeError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/ai/analyze-receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageData }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.vendor) setVendor(data.vendor);
+        if (data.amount != null) setAmount(String(data.amount));
+        if (data.currency) setCurrency(data.currency);
+        if (data.category) setCategory(data.category);
+        if (data.description) setDescription(data.description);
+      })
+      .catch(() => setAnalyzeError(true))
+      .finally(() => setAnalyzing(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = () => {
+    const receipt: Receipt = {
+      id: Date.now(),
+      dayId: selectedDay,
+      imageData,
+      vendor: vendor.trim() || undefined,
+      amount: amount ? parseFloat(amount) : undefined,
+      currency: currency || undefined,
+      category: category || undefined,
+      description: description.trim() || undefined,
+      aiExtracted: !analyzeError,
+    };
+    addReceipt(receipt);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-[#111827] rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🧾</span>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Salvar recibo</h2>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        {/* Photo preview */}
+        <div className="px-6 pt-4">
+          <img src={imageData} alt="Recibo" className="w-full rounded-xl max-h-44 object-contain bg-slate-100 dark:bg-slate-800" />
+        </div>
+
+        {analyzing ? (
+          <div className="px-6 py-10 flex flex-col items-center gap-3 text-center">
+            <div className="w-8 h-8 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Analisando recibo com IA...</p>
+            <p className="text-xs text-slate-400">Extraindo informações automaticamente</p>
+          </div>
+        ) : (
+          <div className="px-6 py-4 space-y-3">
+            {!analyzeError && (
+              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Informações extraídas pela IA — revise se necessário
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estabelecimento</label>
+              <input type="text" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Nome do local..."
+                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Valor</label>
+                <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                  className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Moeda</label>
+                <input type="text" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} placeholder="USD" maxLength={3}
+                  className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all uppercase" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Categoria</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}
+                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
+                {RECEIPT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Descrição</label>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="O que foi comprado..."
+                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Vincular ao dia</label>
+              <select value={selectedDay} onChange={(e) => setSelectedDay(Number(e.target.value))}
+                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
+                {days.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label} · {d.date} · {d.city}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={analyzing}
+            className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
+            Salvar recibo
           </button>
         </div>
       </div>
@@ -466,14 +626,28 @@ export default function TripBoard() {
 
   const [fillingDay, setFillingDay] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setReceiptImage(reader.result as string);
+    reader.readAsDataURL(file);
+    // Reset so same file can be selected again
+    e.target.value = "";
+  };
 
   const days = trip.days;
   const places = trip.places;
-  const placeIds = useMemo(() => places.map((p) => p.id), [places]);
-
   const activeDay_ = days.find((d) => d.id === activeDay);
   const currentCity = activeDay_?.city || trip.cities.find(Boolean) || trip.name;
   const currentDate = activeDay_?.date || "";
+
+  // Only show places that belong to the active day
+  const dayPlaces = useMemo(() => places.filter((p) => (p.dayId ?? 0) === activeDay), [places, activeDay]);
+  const placeIds = useMemo(() => dayPlaces.map((p) => p.id), [dayPlaces]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -489,7 +663,7 @@ export default function TripBoard() {
   };
 
   const handleCardClick = (placeId: number) => {
-    const place = places.find((p) => p.id === placeId);
+    const place = dayPlaces.find((p) => p.id === placeId);
     if (place) {
       setActivePlace(activePlace === placeId ? null : placeId);
       setMapCenter(place.position);
@@ -514,7 +688,7 @@ export default function TripBoard() {
       if (data.error) {
         alert(`Erro ao preencher dia: ${data.error}`);
       } else if (data.places) {
-        data.places.forEach((p: Parameters<typeof addPlace>[0]) => addPlace(p));
+        data.places.forEach((p: Parameters<typeof addPlace>[0]) => addPlace({ ...p, dayId: activeDay }));
         const firstPlace = data.places.find(
           (p: { position: { lat: number; lng: number } }) =>
             p.position.lat !== 0 || p.position.lng !== 0
@@ -534,9 +708,9 @@ export default function TripBoard() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = places.findIndex((p) => p.id === active.id);
-    const newIndex = places.findIndex((p) => p.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) reorderPlaces(oldIndex, newIndex);
+    const oldIndex = dayPlaces.findIndex((p) => p.id === active.id);
+    const newIndex = dayPlaces.findIndex((p) => p.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) reorderPlaces(activeDay, oldIndex, newIndex);
   };
 
   return (
@@ -608,25 +782,50 @@ export default function TripBoard() {
                 {activeDay_?.label} – {activeDay_?.city}
               </h2>
               <p className="text-xs text-slate-400">
-                {places.length} atividades planejadas · arraste para reordenar
+                {dayPlaces.length} atividades planejadas · arraste para reordenar
               </p>
             </div>
           </div>
-          <button
-            onClick={handleFillDay}
-            disabled={fillingDay}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-500/25 cursor-pointer shrink-0"
-          >
-            {fillingDay ? (
-              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10a9.96 9.96 0 0 1-5.06-1.38L2 22l1.38-4.94A9.96 9.96 0 0 1 2 12C2 6.48 6.48 2 12 2z" />
-                <path d="M8 12h.01M12 12h.01M16 12h.01" />
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Camera / receipt button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Escanear recibo"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-amber-600 dark:text-amber-400 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
               </svg>
-            )}
-            {fillingDay ? "Gerando..." : "Preencher dia com IA"}
-          </button>
+              <span className="hidden md:inline">Recibo</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+
+            {/* AI fill button */}
+            <button
+              onClick={handleFillDay}
+              disabled={fillingDay}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-500/25 cursor-pointer"
+            >
+              {fillingDay ? (
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10a9.96 9.96 0 0 1-5.06-1.38L2 22l1.38-4.94A9.96 9.96 0 0 1 2 12C2 6.48 6.48 2 12 2z" />
+                  <path d="M8 12h.01M12 12h.01M16 12h.01" />
+                </svg>
+              )}
+              <span className="hidden md:inline">{fillingDay ? "Gerando..." : "Preencher dia com IA"}</span>
+              <span className="md:hidden">{fillingDay ? "..." : "IA"}</span>
+            </button>
+          </div>
         </div>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -634,12 +833,12 @@ export default function TripBoard() {
             <div className="space-y-4 relative">
               <div className="absolute left-[19px] top-8 bottom-4 w-0.5 bg-gradient-to-b from-violet-300 via-indigo-200 to-transparent dark:from-violet-700 dark:via-indigo-900" />
 
-              {places.map((card, index) => (
+              {dayPlaces.map((card, index) => (
                 <SortablePlaceCard
                   key={card.id}
                   card={card}
                   index={index}
-                  total={places.length}
+                  total={dayPlaces.length}
                   isActive={activePlace === card.id}
                   onCardClick={handleCardClick}
                   onRouteClick={setPendingRoutePlace}
@@ -670,7 +869,16 @@ export default function TripBoard() {
       </div>
 
       {showAddModal && (
-        <AddPlaceModal onClose={() => setShowAddModal(false)} city={currentCity} />
+        <AddPlaceModal onClose={() => setShowAddModal(false)} city={currentCity} dayId={activeDay} />
+      )}
+
+      {receiptImage && (
+        <ReceiptScanModal
+          imageData={receiptImage}
+          dayId={activeDay}
+          days={days}
+          onClose={() => setReceiptImage(null)}
+        />
       )}
     </div>
   );

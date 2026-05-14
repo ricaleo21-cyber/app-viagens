@@ -44,6 +44,7 @@ function NewTripModal({ onClose }: { onClose: () => void }) {
       })),
       places: [],
       wishlist: [],
+      receipts: [],
     };
 
     addTrip(newTrip);
@@ -133,22 +134,42 @@ const GRADIENTS = [
 ];
 
 function TripCard({ trip, index }: { trip: Trip; index: number }) {
-  const { loadTrip } = useTripStore();
+  const { loadTrip, updateTripCover, deleteTrip } = useTripStore();
   const [photo, setPhoto] = useState(trip.coverPhotoUrl);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
+    // Skip if photo already known (loaded from store) or no city to search
     if (photo !== undefined || !trip.cities[0]) return;
     fetch(`/api/place-photo?q=${encodeURIComponent(trip.cities[0])}`)
       .then((r) => r.json())
-      .then((d) => setPhoto(d.url ?? ""))
+      .then((d) => {
+        const url = d.url ?? "";
+        setPhoto(url);
+        if (url) updateTripCover(trip.id, url); // persist so we don't fetch again
+      })
       .catch(() => setPhoto(""));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const gradient = GRADIENTS[index % GRADIENTS.length];
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmDelete) {
+      deleteTrip(trip.id);
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDelete(false);
+  };
+
   return (
     <div
-      onClick={() => loadTrip(trip.id)}
+      onClick={() => !confirmDelete && loadTrip(trip.id)}
       className="group cursor-pointer rounded-2xl overflow-hidden border border-slate-200 hover:border-violet-300 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-white"
     >
       {/* Cover */}
@@ -158,7 +179,7 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
             {photo === undefined ? (
-              <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <span className="text-5xl">✈️</span>
             )}
@@ -166,6 +187,39 @@ function TripCard({ trip, index }: { trip: Trip; index: number }) {
         )}
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+        {/* Delete button / confirm */}
+        <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2">
+              <span className="text-xs text-white font-semibold">Excluir?</span>
+              <button
+                onClick={handleDelete}
+                className="text-xs text-red-400 font-bold hover:text-red-300 transition-colors cursor-pointer px-1"
+              >
+                Sim
+              </button>
+              <button
+                onClick={handleCancelDelete}
+                className="text-xs text-slate-300 font-semibold hover:text-white transition-colors cursor-pointer px-1"
+              >
+                Não
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleDelete}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-xl bg-black/50 backdrop-blur-sm text-white/70 hover:text-red-400 hover:bg-black/70 cursor-pointer"
+              title="Excluir viagem"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
         {/* City pills */}
         <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
           {trip.cities.filter(Boolean).map((city) => (

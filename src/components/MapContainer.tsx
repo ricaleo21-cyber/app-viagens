@@ -91,6 +91,7 @@ function AddToTripModal({ place, onClose }: { place: SelectedMapPlace; onClose: 
   const handleAddToDay = (dayId: number) => {
     addPlace({
       id: Date.now(),
+      dayId,
       title: place.title,
       emoji: place.emoji,
       category: place.category,

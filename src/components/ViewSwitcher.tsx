@@ -5,12 +5,17 @@ import TripBoard from "@/components/TripBoard";
 import MapContainer from "@/components/MapContainer";
 import ReservationsView from "@/components/ReservationsView";
 import WishlistView from "@/components/WishlistView";
+import ReceiptsView from "@/components/ReceiptsView";
 
 export default function ViewSwitcher() {
   const { activeView, showMobileMap } = useTripStore();
 
   if (activeView === "reservations") {
     return <ReservationsView />;
+  }
+
+  if (activeView === "receipts") {
+    return <ReceiptsView />;
   }
 
   if (activeView === "wishlist") {

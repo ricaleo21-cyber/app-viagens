@@ -4,6 +4,12 @@ import { DEMO_TRIP, DEMO_RESERVATIONS } from "@/lib/demoTrip";
 
 // ---- Types ----
 
+export interface ReceiptItem {
+  name: string;
+  qty?: number;
+  price?: number;
+}
+
 export interface Receipt {
   id: number;
   dayId: number;
@@ -13,6 +19,7 @@ export interface Receipt {
   currency?: string;
   category?: string;
   description?: string;
+  items?: ReceiptItem[];
   aiExtracted?: boolean;
 }
 

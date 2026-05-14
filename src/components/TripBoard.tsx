@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useTripStore, type Place, type Receipt } from "@/store/tripStore";
+import { useTripStore, type Place, type Receipt, type ReceiptItem } from "@/store/tripStore";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Atração: "from-amber-500 to-orange-500",
@@ -176,6 +176,7 @@ function ReceiptScanModal({
   const [currency, setCurrency] = useState("USD");
   const [category, setCategory] = useState("Outro");
   const [description, setDescription] = useState("");
+  const [items, setItems] = useState<ReceiptItem[]>([]);
   const [selectedDay, setSelectedDay] = useState(dayId);
   const [analyzeError, setAnalyzeError] = useState(false);
 
@@ -192,10 +193,21 @@ function ReceiptScanModal({
         if (data.currency) setCurrency(data.currency);
         if (data.category) setCategory(data.category);
         if (data.description) setDescription(data.description);
+        if (Array.isArray(data.items) && data.items.length > 0) setItems(data.items);
       })
       .catch(() => setAnalyzeError(true))
       .finally(() => setAnalyzing(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateItem = (i: number, field: keyof ReceiptItem, val: string) => {
+    setItems((prev) => prev.map((it, idx) =>
+      idx === i ? { ...it, [field]: field === "name" ? val : (val === "" ? undefined : parseFloat(val)) } : it
+    ));
+  };
+
+  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
+
+  const addItem = () => setItems((prev) => [...prev, { name: "" }]);
 
   const handleSave = () => {
     const receipt: Receipt = {
@@ -207,6 +219,7 @@ function ReceiptScanModal({
       currency: currency || undefined,
       category: category || undefined,
       description: description.trim() || undefined,
+      items: items.filter((it) => it.name.trim()),
       aiExtracted: !analyzeError,
     };
     addReceipt(receipt);
@@ -219,88 +232,147 @@ function ReceiptScanModal({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#111827] rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2">
             <span className="text-lg">🧾</span>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Salvar recibo</h2>
+            <h2 className="text-base font-bold text-slate-900">Salvar recibo</h2>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
         {/* Photo preview */}
-        <div className="px-6 pt-4">
-          <img src={imageData} alt="Recibo" className="w-full rounded-xl max-h-44 object-contain bg-slate-100 dark:bg-slate-800" />
+        <div className="px-5 pt-4">
+          <img src={imageData} alt="Recibo" className="w-full rounded-xl max-h-40 object-contain bg-slate-100" />
         </div>
 
         {analyzing ? (
-          <div className="px-6 py-10 flex flex-col items-center gap-3 text-center">
-            <div className="w-8 h-8 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Analisando recibo com IA...</p>
-            <p className="text-xs text-slate-400">Extraindo informações automaticamente</p>
+          <div className="px-5 py-10 flex flex-col items-center gap-3 text-center">
+            <div className="w-10 h-10 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+            <p className="text-sm font-semibold text-slate-700">Analisando com IA...</p>
+            <p className="text-xs text-slate-400">Extraindo loja, valores e itens</p>
           </div>
         ) : (
-          <div className="px-6 py-4 space-y-3">
-            {!analyzeError && (
-              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+          <div className="px-5 py-4 space-y-4">
+            {/* AI status */}
+            {analyzeError ? (
+              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Não foi possível analisar — preencha manualmente
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Informações extraídas pela IA — revise se necessário
+                IA preencheu automaticamente — edite o que precisar
               </div>
             )}
 
+            {/* Loja + Categoria na mesma linha */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estabelecimento</label>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estabelecimento</label>
               <input type="text" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Nome do local..."
-                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all" />
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Valor</label>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Valor</label>
                 <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-                  className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Moeda</label>
+              <div className="col-span-1 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Moeda</label>
                 <input type="text" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} placeholder="USD" maxLength={3}
-                  className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all uppercase" />
+                  className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all uppercase text-center" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
+                  {RECEIPT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Categoria</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
-                {RECEIPT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Descrição</label>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Resumo do que foi comprado..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
+            </div>
+
+            {/* Itens */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Itens {items.length > 0 && <span className="text-violet-500 normal-case font-normal">({items.length} encontrados)</span>}
+                </label>
+                <button onClick={addItem} className="text-xs text-violet-600 font-semibold hover:text-violet-700 cursor-pointer">+ Adicionar</button>
+              </div>
+
+              {items.length > 0 ? (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-12 gap-0 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <span className="col-span-6">Item</span>
+                    <span className="col-span-2 text-center">Qtd</span>
+                    <span className="col-span-3 text-right">Preço</span>
+                    <span className="col-span-1" />
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {items.map((item, i) => (
+                      <div key={i} className="grid grid-cols-12 gap-1 px-2 py-1.5 items-center">
+                        <input
+                          value={item.name}
+                          onChange={(e) => updateItem(i, "name", e.target.value)}
+                          className="col-span-6 text-xs text-slate-800 bg-transparent border-0 outline-none focus:bg-slate-50 rounded px-1 py-0.5"
+                          placeholder="Item..."
+                        />
+                        <input
+                          type="number"
+                          value={item.qty ?? ""}
+                          onChange={(e) => updateItem(i, "qty", e.target.value)}
+                          className="col-span-2 text-xs text-slate-600 bg-transparent border-0 outline-none focus:bg-slate-50 rounded px-1 py-0.5 text-center"
+                          placeholder="1"
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={item.price ?? ""}
+                          onChange={(e) => updateItem(i, "price", e.target.value)}
+                          className="col-span-3 text-xs text-slate-600 bg-transparent border-0 outline-none focus:bg-slate-50 rounded px-1 py-0.5 text-right"
+                          placeholder="0.00"
+                        />
+                        <button onClick={() => removeItem(i)} className="col-span-1 flex justify-center text-slate-300 hover:text-red-400 transition-colors cursor-pointer">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 text-center py-2">Nenhum item extraído — toque em "+ Adicionar" para incluir manualmente</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Descrição</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="O que foi comprado..."
-                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 transition-all" />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Vincular ao dia</label>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vincular ao dia</label>
               <select value={selectedDay} onChange={(e) => setSelectedDay(Number(e.target.value))}
-                className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 transition-all">
                 {days.map((d) => (
-                  <option key={d.id} value={d.id}>{d.label} · {d.date} · {d.city}</option>
+                  <option key={d.id} value={d.id}>{d.label} · {d.date}{d.city ? ` · ${d.city}` : ""}</option>
                 ))}
               </select>
             </div>
           </div>
         )}
 
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+        <div className="px-5 py-4 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white">
           <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer">
             Cancelar
           </button>
           <button onClick={handleSave} disabled={analyzing}

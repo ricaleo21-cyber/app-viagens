@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.AI_API_KEY || "");
 
 export async function POST(request: Request) {
   const { imageData } = await request.json();
@@ -9,7 +9,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Imagem não fornecida" }, { status: 400 });
   }
 
-  // imageData is a base64 data URL: "data:image/jpeg;base64,..."
   const parts = imageData.split(",");
   const base64 = parts[1];
   const mimeType = (parts[0]?.split(";")[0]?.split(":")[1]) || "image/jpeg";
@@ -20,17 +19,25 @@ export async function POST(request: Request) {
     {
       inlineData: { data: base64, mimeType },
     },
-    `Analise este recibo/nota fiscal e extraia as informações principais. Retorne SOMENTE um JSON válido sem markdown, sem explicações:
+    `Analise este recibo/nota fiscal detalhadamente. Retorne SOMENTE um JSON válido sem markdown, sem explicações:
 
 {
-  "vendor": "nome do estabelecimento ou loja",
-  "amount": valor_total_numérico_sem_símbolo,
-  "currency": "código da moeda (USD, EUR, BRL, etc)",
-  "category": "Restaurante ou Supermercado ou Loja ou Farmácia ou Transporte ou Hotel ou Entretenimento ou Atrações ou Outro",
-  "description": "breve descrição de 1 linha do que foi comprado"
+  "vendor": "nome do estabelecimento/loja exatamente como no recibo",
+  "amount": valor_total_numérico_sem_símbolo_de_moeda,
+  "currency": "código da moeda (USD, EUR, BRL, GBP, etc)",
+  "category": "uma das opções: Restaurante, Supermercado, Loja, Farmácia, Transporte, Hotel, Entretenimento, Atrações, Outro",
+  "description": "resumo curto do que foi comprado (máx 60 chars)",
+  "items": [
+    { "name": "nome do produto/item", "qty": quantidade_numérica, "price": preço_unitário_numérico },
+    ...liste todos os itens visíveis no recibo...
+  ]
 }
 
-Se não conseguir identificar algum campo, use null para ele.`,
+Regras:
+- Se não conseguir identificar um campo, use null
+- Para items, liste o máximo possível de itens visíveis
+- qty e price podem ser null se não visíveis
+- amount deve ser o total final pago`,
   ]);
 
   const text = result.response.text();

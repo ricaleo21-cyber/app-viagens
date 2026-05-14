@@ -11,7 +11,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Parque: "from-green-500 to-emerald-600",
 };
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.AI_API_KEY || "");
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {

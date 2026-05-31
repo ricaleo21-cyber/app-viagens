@@ -13,15 +13,13 @@ const TRAVEL_MODES: { mode: TravelMode; label: string; icon: string }[] = [
 ];
 
 export default function RouteModal() {
-  const { pendingRoutePlace, setPendingRoutePlace, setRoute, setMapCenter, setMapZoom, setShowMobileMap } =
-    useTripStore();
+  const { pendingRoutePlace, setPendingRoutePlace } = useTripStore();
 
   const [originMode, setOriginMode] = useState<"location" | "address">("location");
   const [customAddress, setCustomAddress] = useState("");
   const [travelMode, setTravelMode] = useState<TravelMode>("DRIVING");
   const [isLocating, setIsLocating] = useState(false);
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [isGeocoding, setIsGeocoding] = useState(false);
   const [error, setError] = useState("");
 
   if (!pendingRoutePlace) return null;
@@ -47,62 +45,22 @@ export default function RouteModal() {
     );
   };
 
-  const handleTraceRoute = async () => {
-    let origin: { lat: number; lng: number } | null = null;
-    let originLabel = "";
+  const handleOpenGoogleMaps = () => {
+    const { lat, lng } = pendingRoutePlace.position;
+    const mode = travelMode.toLowerCase();
+    let url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=${mode}`;
 
     if (originMode === "location" && currentPosition) {
-      origin = currentPosition;
-      originLabel = "Minha localização";
+      url += `&origin=${currentPosition.lat},${currentPosition.lng}`;
     } else if (originMode === "address" && customAddress.trim()) {
-      setIsGeocoding(true);
-      setError("");
-      try {
-        const geocoder = new google.maps.Geocoder();
-        const result = await new Promise<google.maps.GeocoderResult | null>((resolve) => {
-          geocoder.geocode({ address: customAddress }, (results, status) => {
-            resolve(status === "OK" && results?.[0] ? results[0] : null);
-          });
-        });
-        if (result) {
-          origin = {
-            lat: result.geometry.location.lat(),
-            lng: result.geometry.location.lng(),
-          };
-          originLabel = customAddress;
-        } else {
-          setError("Endereço não encontrado. Tente ser mais específico.");
-          setIsGeocoding(false);
-          return;
-        }
-      } catch {
-        setError("Erro ao buscar endereço.");
-        setIsGeocoding(false);
-        return;
-      }
-      setIsGeocoding(false);
+      url += `&origin=${encodeURIComponent(customAddress.trim())}`;
     } else {
       setError("Informe sua localização ou um endereço de partida.");
       return;
     }
 
-    setRoute(origin, pendingRoutePlace.position, originLabel, pendingRoutePlace.title, travelMode);
-    setMapCenter(pendingRoutePlace.position);
-    setMapZoom(13);
-    setShowMobileMap(true); // abre o mapa no mobile
+    window.open(url, "_blank");
     setPendingRoutePlace(null);
-  };
-
-  const getExportUrl = () => {
-    const { lat, lng } = pendingRoutePlace.position;
-    const mode = travelMode.toLowerCase();
-    let url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=${mode}`;
-    if (originMode === "location" && currentPosition) {
-      url += `&origin=${currentPosition.lat},${currentPosition.lng}`;
-    } else if (originMode === "address" && customAddress.trim()) {
-      url += `&origin=${encodeURIComponent(customAddress)}`;
-    }
-    return url;
   };
 
   const canTrace =
@@ -121,7 +79,7 @@ export default function RouteModal() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-bold text-white">Criar Rota</h2>
+            <h2 className="text-lg font-bold text-white">Traçar Rota</h2>
             <p className="text-sm text-slate-400">
               Destino: {pendingRoutePlace.emoji} {pendingRoutePlace.title}
             </p>
@@ -223,36 +181,17 @@ export default function RouteModal() {
           </p>
         )}
 
-        {/* Buttons */}
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={handleTraceRoute}
-            disabled={!canTrace || isGeocoding}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-violet-500/25 cursor-pointer"
-          >
-            {isGeocoding ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-            )}
-            {isGeocoding ? "Buscando endereço..." : "Traçar rota no mapa"}
-          </button>
-
-          <a
-            href={getExportUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-semibold hover:bg-white/10 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-              <line x1="12" y1="18" x2="12.01" y2="18" />
-            </svg>
-            Exportar para celular
-          </a>
-        </div>
+        {/* Button */}
+        <button
+          onClick={handleOpenGoogleMaps}
+          disabled={!canTrace}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-violet-500/25 cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          Traçar Rota no Google Maps
+        </button>
       </div>
     </div>
   );

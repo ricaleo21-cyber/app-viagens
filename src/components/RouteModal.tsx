@@ -13,7 +13,7 @@ const TRAVEL_MODES: { mode: TravelMode; label: string; icon: string }[] = [
 ];
 
 export default function RouteModal() {
-  const { pendingRoutePlace, setPendingRoutePlace, setRoute, setMapCenter, setMapZoom } =
+  const { pendingRoutePlace, setPendingRoutePlace, setRoute, setMapCenter, setMapZoom, setShowMobileMap } =
     useTripStore();
 
   const [originMode, setOriginMode] = useState<"location" | "address">("location");
@@ -89,6 +89,7 @@ export default function RouteModal() {
     setRoute(origin, pendingRoutePlace.position, originLabel, pendingRoutePlace.title, travelMode);
     setMapCenter(pendingRoutePlace.position);
     setMapZoom(13);
+    setShowMobileMap(true); // abre o mapa no mobile
     setPendingRoutePlace(null);
   };
 

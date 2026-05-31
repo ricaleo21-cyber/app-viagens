@@ -256,6 +256,30 @@ export default function MapContainer() {
     if (map) setMapZoom((map.getZoom() || mapZoom) - 1);
   };
 
+  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    const ie = e as google.maps.IconMouseEvent;
+    if (!ie.placeId || !map) return;
+    e.stop();
+    const service = new google.maps.places.PlacesService(map);
+    service.getDetails(
+      { placeId: ie.placeId, fields: ["name", "formatted_address", "geometry", "types", "rating", "website"] },
+      (place, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) return;
+        const { emoji, category, color } = inferFromTypes(place.types || []);
+        setPendingPlace({
+          title: place.name || "",
+          address: place.formatted_address || "",
+          position: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+          emoji,
+          category,
+          color,
+          rating: place.rating,
+          website: place.website,
+        });
+      }
+    );
+  }, [map]);
+
   const handlePlaceChanged = () => {
     if (!autocomplete) return;
     const place = autocomplete.getPlace();
@@ -347,6 +371,7 @@ export default function MapContainer() {
           options={mapOptions}
           onLoad={onLoad}
           onUnmount={onUnmount}
+          onClick={handleMapClick}
         >
           {directions && (
             <DirectionsRenderer

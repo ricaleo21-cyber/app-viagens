@@ -34,6 +34,22 @@ const cityCoords: Record<string, { lat: number; lng: number }> = {
   Roma: { lat: 41.9028, lng: 12.4964 },
 };
 
+function inferCategoryFromTypes(types: string[]): { emoji: string; category: string } {
+  if (types.some(t => ["restaurant", "food", "cafe", "meal_takeaway", "bakery", "bar", "meal_delivery"].includes(t)))
+    return { emoji: "🍽️", category: "Restaurante" };
+  if (types.some(t => ["museum"].includes(t)))
+    return { emoji: "🎨", category: "Museu" };
+  if (types.some(t => ["park", "natural_feature", "campground"].includes(t)))
+    return { emoji: "🌿", category: "Parque" };
+  if (types.some(t => ["shopping_mall", "store", "supermarket", "department_store", "clothing_store", "grocery_or_supermarket"].includes(t)))
+    return { emoji: "🛍️", category: "Compras" };
+  if (types.some(t => ["church", "place_of_worship", "hindu_temple", "mosque", "synagogue"].includes(t)))
+    return { emoji: "⛪", category: "Monumento" };
+  if (types.some(t => ["amusement_park"].includes(t)))
+    return { emoji: "🎡", category: "Atração" };
+  return { emoji: "📍", category: "Atração" };
+}
+
 // ---- Add Place Modal ----
 
 function AddPlaceModal({ onClose, city, dayId }: { onClose: () => void; city: string; dayId: number }) {
@@ -46,17 +62,43 @@ function AddPlaceModal({ onClose, city, dayId }: { onClose: () => void; city: st
   const [note, setNote] = useState("");
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [placePosition, setPlacePosition] = useState<{ lat: number; lng: number } | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = titleInputRef.current;
+    if (!input || typeof window === "undefined" || !(window as any).google?.maps?.places) return;
+    const ac = new (window as any).google.maps.places.Autocomplete(input, {
+      fields: ["name", "formatted_address", "geometry", "types", "rating"],
+    });
+    const listener = ac.addListener("place_changed", () => {
+      const place = ac.getPlace();
+      if (place.name) setTitle(place.name);
+      if (place.formatted_address) setAddress(place.formatted_address);
+      if (place.geometry?.location) {
+        setPlacePosition({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+      }
+      if (place.types) {
+        const { emoji: e, category: cat } = inferCategoryFromTypes(place.types);
+        setEmoji(e);
+        setCategory(cat);
+      }
+    });
+    return () => (window as any).google.maps.event.removeListener(listener);
+  }, []);
 
   const handleSave = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    let position = { lat: 0, lng: 0 };
-    try {
-      const q = address.trim() || `${title.trim()}, ${city}`;
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (data.lat || data.lng) position = { lat: data.lat, lng: data.lng };
-    } catch {}
+    let position = placePosition || { lat: 0, lng: 0 };
+    if (!placePosition) {
+      try {
+        const q = address.trim() || `${title.trim()}, ${city}`;
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.lat || data.lng) position = { lat: data.lat, lng: data.lng };
+      } catch {}
+    }
     addPlace({
       id: Date.now(),
       dayId,
@@ -99,8 +141,8 @@ function AddPlaceModal({ onClose, city, dayId }: { onClose: () => void; city: st
             </div>
             <div className="space-y-1.5 flex-1">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nome do local *</label>
-              <input autoFocus type="text" placeholder="Ex: Bonnet House Museum" value={title}
-                onChange={(e) => setTitle(e.target.value)}
+              <input autoFocus ref={titleInputRef} type="text" placeholder="Ex: Bonnet House Museum" value={title}
+                onChange={(e) => { setTitle(e.target.value); setPlacePosition(null); }}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
                 className="w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all" />
             </div>

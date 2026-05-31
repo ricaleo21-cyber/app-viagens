@@ -589,6 +589,17 @@ function SortablePlaceCard({
                   </button>
                   {menuOpen && (
                     <div className="absolute right-0 top-8 z-50 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 min-w-[170px]">
+                      {/* Criar rota — shown in menu on mobile */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onRouteClick(card); }}
+                        className="flex md:hidden items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 transition-colors cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                        Criar rota
+                      </button>
+                      <div className="md:hidden h-px bg-slate-100 dark:bg-slate-700 mx-2 my-1" />
                       <button
                         onClick={handleRegenerate}
                         disabled={regenerating}
